@@ -4,7 +4,12 @@ This is a set of completely unofficial Amazon AWS S3 compatibility tests, that w
 
 The tests use the Google C++ Testing Framework. 
 
-You need to create your configuration file with the location of the service , and one set of credentials. Copy config.cfg.sample and edit accordingly. 
+**Compile and run the tests:**
+
+::
+	cmake CMakeLists.txt
+	make
+	./runTests
 
 **TODo**
 

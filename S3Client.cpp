@@ -1,15 +1,18 @@
-﻿/*
- * for creds set/export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
- * and pass -e = localhost:8000 if using vstart.sh 
+/*
+ *
+ * creds, one of these choices,
+ *  1, set ~/.aws/credentials
+ *  2, point env AWS_SHARED_CREDENTIALS_FILE to credentials elsewhere
+ *  3, set AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+ * and pass -e = radosgw (unless you want to test against amazon)
  */
 
 #include <aws/core/Aws.h>
 #include <aws/s3/S3Client.h>
 #include <aws/s3/model/Bucket.h>
 #include <aws/s3/model/CreateBucketRequest.h>
-#include <aws/s3/model/DeleteBucketRequest.h>
+#include <aws/s3/model/ListObjectsRequest.h>
 #include <network/uri.hpp>
-
 
 const char *my_endpoint;
 const char *my_region;
@@ -43,27 +46,41 @@ int process()
 
   Aws::S3::S3Client s3_client(clientconfig);
 
-  TEST (BucketTest, delete_non_existant_bucket) { 
-    const Aws::String bucket_name = "SomeBucket";
-    Aws::S3::Model::DeleteBucketRequest bucket_request;
-    bucket_request.WithBucket(bucket_name);
-    auto delete_bucket_outcome = s3_client.DeleteBucket(bucket_request);
-    EXPECT_EQ (false, delete_bucket_outcome.IsSuccess()); 
-  }
+        const Aws::String bucket_name = "Bucket1";
+        std::cout << "Creating S3 bucket: " << bucket_name << std::endl;
 
-  TEST (BucketTest, list_buckets) { 
-      auto list_buckets_outcome = s3_client.ListBuckets();
-      EXPECT_EQ (true, list_buckets_outcome.IsSuccess());
-  }
+        Aws::S3::Model::CreateBucketRequest bucket_request;
+        bucket_request.WithBucket(bucket_name);
 
-  TEST (BucketTest, delete_non_existant_bucket) { 
-    const Aws::String bucket_name = "SomeBucket";
-    Aws::S3::Model::DeleteBucketRequest bucket_request;
-    bucket_request.WithBucket(bucket_name);
-    auto delete_bucket_outcome = s3_client.DeleteBucket(bucket_request);
-    EXPECT_EQ (false, delete_bucket_outcome.IsSuccess()); 
+        auto create_bucket_outcome = s3_client.CreateBucket(bucket_request);
+
+        if (create_bucket_outcome.IsSuccess()) {
+            std::cout << "Done!" << std::endl;
+        } else {
+            std::cout << "CreateBucket error: " <<
+                create_bucket_outcome.GetError().GetExceptionName() << std::endl
+                << create_bucket_outcome.GetError().GetMessage() << std::endl;
+        }
+
+        
+        //List Buckets
+
+  auto list_buckets_outcome = s3_client.ListBuckets();
+
+  if (list_buckets_outcome.IsSuccess()) {
+    std::cout << "Your Amazon S3 buckets:" << std::endl;
+
+    Aws::Vector<Aws::S3::Model::Bucket> bucket_list =
+      list_buckets_outcome.GetResult().GetBuckets();
+
+    for (auto const &bucket: bucket_list) {
+      std::cout << "* " << bucket.GetName() << std::endl;
+    }
+  } else {
+    std::cout << "ListBuckets error: " <<
+      list_buckets_outcome.GetError().GetExceptionName() << " " <<
+      list_buckets_outcome.GetError().GetMessage() << std::endl;
   }
-  
 }
 
 int main(int ac, char **av)
@@ -90,8 +107,6 @@ int main(int ac, char **av)
     Aws::SDKOptions options;
     Aws::InitAPI(options);
     process();
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
     Aws::ShutdownAPI(options);
   }
   exit(exitcode);
